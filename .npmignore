@@ -1,0 +1,12 @@
+src
+examples
+*.test.ts
+*.test.tsx
+__tests__
+.vscode
+.idea
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+coverage
+.DS_Store

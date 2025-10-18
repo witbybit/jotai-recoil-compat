@@ -1,0 +1,60 @@
+{
+  "name": "jotai-recoil",
+  "version": "0.1.0",
+  "description": "A Recoil-compatible API wrapper over Jotai for seamless migration from Recoil",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "jotai",
+    "recoil",
+    "state-management",
+    "react",
+    "migration",
+    "wrapper",
+    "atoms",
+    "selectors"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/witbybit/jotai-recoil"
+  },
+  "peerDependencies": {
+    "jotai": ">=2.0.0",
+    "react": ">=16.8.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^14.0.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "happy-dom": "^20.0.5",
+    "jotai": "^2.6.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.3.1",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}
