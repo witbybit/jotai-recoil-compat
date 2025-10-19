@@ -1,5 +1,5 @@
 {
-  "name": "jotai-recoil",
+  "name": "jotai-recoil-compat",
   "version": "0.1.0",
   "description": "A Recoil-compatible API wrapper over Jotai for seamless migration from Recoil",
   "main": "./dist/index.js",
@@ -39,7 +39,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/witbybit/jotai-recoil"
+    "url": "https://github.com/witbybit/jotai-recoil-compat"
   },
   "peerDependencies": {
     "jotai": ">=2.0.0",
