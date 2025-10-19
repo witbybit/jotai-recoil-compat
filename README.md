@@ -1,8 +1,8 @@
-# jotai-recoil
+# jotai-recoil-compat
 
 A Recoil-compatible API wrapper over [Jotai](https://jotai.org/) for seamless migration from Recoil to Jotai.
 
-## Why jotai-recoil?
+## Why jotai-recoil-compat?
 
 [Recoil](https://recoiljs.org/) is no longer actively maintained, but many projects rely on it for state management. This library provides a drop-in replacement that uses Jotai under the hood while maintaining Recoil's familiar API, making migration straightforward and less risky.
 
@@ -17,11 +17,11 @@ A Recoil-compatible API wrapper over [Jotai](https://jotai.org/) for seamless mi
 ## Installation
 
 ```bash
-npm install jotai-recoil jotai
+npm install jotai-recoil-compat jotai
 # or
-yarn add jotai-recoil jotai
+yarn add jotai-recoil-compat jotai
 # or
-pnpm add jotai-recoil jotai
+pnpm add jotai-recoil-compat jotai
 ```
 
 ## Quick Start
@@ -63,7 +63,7 @@ function Counter() {
 }
 ```
 
-### After (jotai-recoil)
+### After (jotai-recoil-compat)
 
 Simply change the import statement:
 
@@ -72,7 +72,7 @@ Simply change the import statement:
 // import { RecoilRoot, atom, selector, useRecoilState, useRecoilValue } from 'recoil';
 
 // To this:
-import { RecoilRoot, atom, selector, useRecoilState, useRecoilValue } from 'jotai-recoil';
+import { RecoilRoot, atom, selector, useRecoilState, useRecoilValue } from 'jotai-recoil-compat';
 
 // Everything else stays the same!
 ```
@@ -86,7 +86,7 @@ import { RecoilRoot, atom, selector, useRecoilState, useRecoilValue } from 'jota
 Creates an atom with Recoil's API.
 
 ```tsx
-import { atom } from 'jotai-recoil';
+import { atom } from 'jotai-recoil-compat';
 
 const textState = atom({
   key: 'textState',
@@ -99,7 +99,7 @@ const textState = atom({
 Creates a derived state (selector) with Recoil's API.
 
 ```tsx
-import { atom, selector } from 'jotai-recoil';
+import { atom, selector } from 'jotai-recoil-compat';
 
 const countState = atom({
   key: 'countState',
@@ -128,7 +128,7 @@ const incrementState = selector({
 Returns a tuple with the current value and a setter function.
 
 ```tsx
-import { useRecoilState } from 'jotai-recoil';
+import { useRecoilState } from 'jotai-recoil-compat';
 
 function Component() {
   const [count, setCount] = useRecoilState(countState);
@@ -146,7 +146,7 @@ function Component() {
 Returns the current value of an atom or selector (read-only).
 
 ```tsx
-import { useRecoilValue } from 'jotai-recoil';
+import { useRecoilValue } from 'jotai-recoil-compat';
 
 function Component() {
   const count = useRecoilValue(countState);
@@ -160,7 +160,7 @@ function Component() {
 Returns a setter function without subscribing to value changes.
 
 ```tsx
-import { useSetRecoilState } from 'jotai-recoil';
+import { useSetRecoilState } from 'jotai-recoil-compat';
 
 function Component() {
   const setCount = useSetRecoilState(countState);
@@ -178,7 +178,7 @@ function Component() {
 Returns a function to reset the atom to its default value.
 
 ```tsx
-import { useResetRecoilState } from 'jotai-recoil';
+import { useResetRecoilState } from 'jotai-recoil-compat';
 
 function Component() {
   const resetCount = useResetRecoilState(countState);
@@ -194,7 +194,7 @@ function Component() {
 Provides the state context for your application.
 
 ```tsx
-import { RecoilRoot } from 'jotai-recoil';
+import { RecoilRoot } from 'jotai-recoil-compat';
 
 function App() {
   return (
@@ -207,10 +207,10 @@ function App() {
 
 ## Migration Guide
 
-### Step 1: Install jotai-recoil
+### Step 1: Install jotai-recoil-compat
 
 ```bash
-npm install jotai-recoil jotai
+npm install jotai-recoil-compat jotai
 ```
 
 ### Step 2: Update imports
@@ -222,7 +222,7 @@ Find and replace all Recoil imports:
 import { ... } from 'recoil';
 
 // After
-import { ... } from 'jotai-recoil';
+import { ... } from 'jotai-recoil-compat';
 ```
 
 ### Step 3: Test your application
@@ -242,7 +242,7 @@ Once stable, you can gradually refactor to use Jotai's native API for new featur
 
 ## Comparison with Recoil
 
-| Feature | Recoil | jotai-recoil |
+| Feature | Recoil | jotai-recoil-compat |
 |---------|--------|--------------|
 | Basic atoms | ✅ | ✅ |
 | Selectors | ✅ | ✅ |
@@ -266,4 +266,4 @@ MIT
 
 ## Support
 
-If you encounter any issues or have questions, please [open an issue](https://github.com/yourusername/jotai-recoil/issues).
+If you encounter any issues or have questions, please [open an issue](https://github.com/yourusername/jotai-recoil-compat/issues).
