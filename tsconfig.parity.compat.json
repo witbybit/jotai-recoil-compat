@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.test.json",
+  "compilerOptions": {
+    "paths": { "recoil-under-test": ["./src/index.ts"], "jotai-recoil-compat": ["./src/index.ts"] }
+  },
+  "include": ["parity/**/*"]
+}

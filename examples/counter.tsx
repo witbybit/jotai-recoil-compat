@@ -1,4 +1,4 @@
-import { RecoilRoot, atom, selector, useRecoilState, useRecoilValue } from 'jotai-recoil';
+import { RecoilRoot, atom, selector, useRecoilState, useRecoilValue } from 'jotai-recoil-compat';
 
 // Define atoms
 const countState = atom({

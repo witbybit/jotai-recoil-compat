@@ -1,7 +1,32 @@
 {
   "name": "jotai-recoil-compat",
-  "version": "0.1.0",
-  "description": "A Recoil-compatible API wrapper over Jotai for seamless migration from Recoil",
+  "version": "0.2.0",
+  "description": "Drop-in replacement for Recoil, powered by Jotai. Same API (atoms, selectors, families, effects, snapshots, loadables, callbacks) so you can move off the unmaintained Recoil by changing one import.",
+  "keywords": [
+    "recoil",
+    "jotai",
+    "recoil-alternative",
+    "recoil-replacement",
+    "recoil-migration",
+    "drop-in",
+    "state-management",
+    "react",
+    "atoms",
+    "selectors",
+    "migration",
+    "codemod"
+  ],
+  "license": "MIT",
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/witbybit/jotai-recoil-compat"
+  },
+  "bugs": {
+    "url": "https://github.com/witbybit/jotai-recoil-compat/issues"
+  },
+  "homepage": "https://github.com/witbybit/jotai-recoil-compat#readme",
+  "sideEffects": false,
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -10,11 +35,17 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
-    }
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "jotai-recoil-compat": "./bin/jotai-recoil-compat.mjs"
   },
   "files": [
     "dist",
+    "bin",
     "README.md",
+    "MIGRATION.md",
     "LICENSE"
   ],
   "scripts": {
@@ -22,37 +53,25 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
-  },
-  "keywords": [
-    "jotai",
-    "recoil",
-    "state-management",
-    "react",
-    "migration",
-    "wrapper",
-    "atoms",
-    "selectors"
-  ],
-  "author": "",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/witbybit/jotai-recoil-compat"
+    "test:parity": "vitest run --project parity:compat --project parity:recoil",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p tsconfig.parity.compat.json && tsc --noEmit -p tsconfig.parity.recoil.json",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "peerDependencies": {
-    "jotai": ">=2.0.0",
-    "react": ">=16.8.0"
+    "jotai": ">=2.12.0 <4",
+    "react": ">=17.0.0"
   },
   "devDependencies": {
-    "@testing-library/react": "^14.0.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^20.0.0",
-    "@types/react": "^18.0.0",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
     "happy-dom": "^20.0.5",
-    "jotai": "^2.6.0",
-    "react": "^18.2.0",
+    "jotai": "^2.20.3",
+    "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "recoil": "^0.7.7",
     "tsup": "^8.0.0",
     "typescript": "^5.3.0",
     "vitest": "^3.2.4"
