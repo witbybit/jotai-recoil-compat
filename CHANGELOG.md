@@ -27,7 +27,7 @@ package can be used as a drop-in replacement (including via
 - Jotai interop: Recoil nodes are Jotai atoms; selectors and Recoil hooks accept plain Jotai atoms.
 - `npx jotai-recoil-compat check` and `migrate` CLI.
 - Parity test suite that runs against both this library and Recoil, plus type parity checks.
-- Support for Jotai 3 and React 19.
+- Jotai 3 and React 19 support. Development and docs now target Jotai 3; Jotai 2.12+ remains supported and tested in CI.
 
 ### Changed
 - Requires Jotai 2.12 or later and React 17 or later.

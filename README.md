@@ -7,7 +7,7 @@ Keep your Recoil code exactly as it is, swap the engine underneath, and move to 
   "dependencies": {
 -   "recoil": "^0.7.7",
 +   "recoil": "npm:jotai-recoil-compat@^0.2.0",
-+   "jotai": "^2.12.0",
++   "jotai": "^3.0.0",
   }
 ```
 
@@ -23,7 +23,7 @@ Recoil has been archived and is no longer maintained. It does not work with Reac
 
 - **Same API, same behavior.** Atoms, selectors (sync and async), families, atom effects, snapshots, loadables, `waitFor*`, `useRecoilCallback`, transactions, refreshers, `initializeState`, and more.
 - **Verified against Recoil itself.** A parity test suite runs the same tests against this library *and* against the real `recoil` package. Typed Recoil code is type-checked against both.
-- **Works on React 17, 18 and 19**, and on Jotai 2.12+ and 3.x.
+- **Built for Jotai 3 and React 19**, and still works with Jotai 2.12+ and React 17/18 if you can't upgrade those yet.
 - **Smaller.** About 12 KB min+gzip *including Jotai*, versus about 25 KB for Recoil.
 - **Every atom and selector is a real Jotai atom**, so you can start using Jotai APIs right away and migrate gradually.
 
@@ -174,9 +174,10 @@ A Recoil-to-Jotai cheat sheet is in [MIGRATION.md](./MIGRATION.md#moving-to-nati
 
 ## Requirements
 
-- React 17, 18 or 19
-- Jotai 2.12 or later (Jotai 3 is supported)
-- TypeScript 4.7+ if you use TypeScript (5.5+ with Jotai 3)
+- Jotai 3 (recommended) or Jotai 2.12+
+- React 18 or 19 (React 17 works with Jotai 2)
+- TypeScript 5.5+ with Jotai 3 (TypeScript 4.7+ works with Jotai 2)
+- Node 22.12+ for tooling with Jotai 3 (Jotai's own requirement)
 
 ## FAQ
 

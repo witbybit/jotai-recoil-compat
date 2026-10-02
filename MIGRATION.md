@@ -40,7 +40,7 @@ Scanned for imports from 'recoil': 214 file(s), 23 distinct API(s).
 {
   "dependencies": {
     "recoil": "npm:jotai-recoil-compat@^0.2.0",
-    "jotai": "^2.12.0"
+    "jotai": "^3.0.0"
   }
 }
 ```
@@ -127,7 +127,7 @@ Notes:
 | `atomFamily` / `selectorFamily` | [`jotai-family`](https://github.com/jotaijs/jotai-family) `atomFamily(param => atom(...), isEqual)` |
 | `useRecoilState` / `useRecoilValue` / `useSetRecoilState` | `useAtom` / `useAtomValue` / `useSetAtom` |
 | `useResetRecoilState` | `atomWithReset` + `useResetAtom` from `jotai/utils` |
-| `useRecoilValueLoadable`, `noWait` | `loadable(atom)` (Jotai 2) or `unwrap(atom, fallback)` from `jotai/utils` |
+| `useRecoilValueLoadable`, `noWait` | `unwrap(atom, fallback)` from `jotai/utils` (`loadable` was removed in Jotai 3) |
 | `waitForAll([a, b])` | `atom((get) => Promise.all([get(a), get(b)]))` |
 | atom effects | `onMount` on the atom, or [`jotai-effect`](https://github.com/jotaijs/jotai-effect) (`atomEffect`, `withAtomEffect`) |
 | persistence effect | `atomWithStorage` from `jotai/utils` |
