@@ -71,6 +71,7 @@ export function createSelector<T>(
     let deps: Array<[AnyAtom, unknown]> = [];
     let depSet = new Set<AnyAtom>();
     let cacheable = true;
+    let swallowedPending: PromiseLike<unknown>[] = [];
 
     const record = (dep: AnyAtom, raw: unknown) => {
       if (!depSet.has(dep)) {
@@ -92,7 +93,19 @@ export function createSelector<T>(
         throw e;
       }
     };
-    const getValue = (dep: unknown) => unwrapRaw(readDep(dep));
+    const getValue = (dep: unknown) => {
+      try {
+        return unwrapRaw(readDep(dep));
+      } catch (e) {
+        // Remembered in case the selector catches it instead of letting it propagate.
+        if (e instanceof PendingSignal) swallowedPending.push(e.promise);
+        throw e;
+      }
+    };
+    const refreshWhenSettled = (p: PromiseLike<unknown>) => {
+      const s = getStore();
+      settled(p).then(() => s.set(node as any, REFRESH));
+    };
     const getLoadable = <V>(dep: AnyAtom): Loadable<V> => {
       let raw: unknown;
       try {
@@ -105,8 +118,7 @@ export function createSelector<T>(
         // The result depends on a pending value without suspending on it:
         // don't cache it, and re-evaluate once the value settles.
         cacheable = false;
-        const s = getStore();
-        settled(l.contents).then(() => s.set(node as any, REFRESH));
+        refreshWhenSettled(l.contents);
       }
       return l;
     };
@@ -117,6 +129,12 @@ export function createSelector<T>(
     const opts = { get: getValue, getCallback, [GET_LOADABLE]: getLoadable } as any;
 
     const commit = (value: unknown) => {
+      if (swallowedPending.length) {
+        // The selector caught a pending dependency and returned anyway (e.g.
+        // a fallback): don't cache that, and re-run once it settles.
+        cacheable = false;
+        refreshWhenSettled(Promise.all(swallowedPending.map(settled)));
+      }
       if (cacheable) cache.insert(deps.slice(), { ok: true, value });
       meta.deps = depSet;
       return value;
@@ -158,6 +176,7 @@ export function createSelector<T>(
       deps = [];
       depSet = new Set();
       cacheable = true;
+      swallowedPending = [];
       try {
         return settle(userGet(opts));
       } catch (e) {

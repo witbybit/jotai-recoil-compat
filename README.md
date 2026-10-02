@@ -1,269 +1,199 @@
 # jotai-recoil-compat
 
-A Recoil-compatible API wrapper over [Jotai](https://jotai.org/) for seamless migration from Recoil to Jotai.
+**A drop-in replacement for [Recoil](https://recoiljs.org/), powered by [Jotai](https://jotai.org/).**
+Keep your Recoil code exactly as it is, swap the engine underneath, and move to native Jotai later, one component at a time (or never).
 
-## Why jotai-recoil-compat?
+```diff
+  "dependencies": {
+-   "recoil": "^0.7.7",
++   "recoil": "npm:jotai-recoil-compat@^0.2.0",
++   "jotai": "^2.12.0",
+  }
+```
 
-[Recoil](https://recoiljs.org/) is no longer actively maintained, but many projects rely on it for state management. This library provides a drop-in replacement that uses Jotai under the hood while maintaining Recoil's familiar API, making migration straightforward and less risky.
+That's the whole migration for most apps. No code changes.
 
-## Features
+---
 
-- **Recoil-compatible API**: Minimal code changes required
-- **Powered by Jotai**: Leverages Jotai's modern, lightweight state management
-- **TypeScript support**: Full type safety out of the box
-- **Tree-shakeable**: Only bundle what you use
-- **Easy migration**: Gradually migrate your codebase
+## Why
 
-## Installation
+Recoil has been archived and is no longer maintained. It does not work with React 19, and it won't get fixes. Rewriting a large Recoil codebase by hand is slow and risky: hundreds of atoms, selectors, families, effects and `useRecoilCallback`s, all with subtle semantics.
+
+`jotai-recoil-compat` implements **the entire public API of `recoil@0.7`** on top of Jotai, a small, actively maintained library built on the same atomic model:
+
+- **Same API, same behavior.** Atoms, selectors (sync and async), families, atom effects, snapshots, loadables, `waitFor*`, `useRecoilCallback`, transactions, refreshers, `initializeState`, and more.
+- **Verified against Recoil itself.** A parity test suite runs the same tests against this library *and* against the real `recoil` package. Typed Recoil code is type-checked against both.
+- **Works on React 17, 18 and 19**, and on Jotai 2.12+ and 3.x.
+- **Smaller.** About 12 KB min+gzip *including Jotai*, versus about 25 KB for Recoil.
+- **Every atom and selector is a real Jotai atom**, so you can start using Jotai APIs right away and migrate gradually.
+
+## Migrating
+
+Start by checking what your code uses. This scans your source and lists every Recoil API it imports, with its support status:
+
+```bash
+npx jotai-recoil-compat check src
+```
+
+Then pick one of the three options below.
+
+### Option A: package alias, no code changes (recommended)
+
+Point the `recoil` package name at this library and add `jotai`:
+
+```bash
+npm install recoil@npm:jotai-recoil-compat@^0.2.0 jotai
+# yarn add recoil@npm:jotai-recoil-compat@^0.2.0 jotai
+# pnpm add recoil@npm:jotai-recoil-compat@^0.2.0 jotai
+```
+
+Every `import ... from 'recoil'` in your app, your tests and your `jest.mock('recoil')` calls now resolves to `jotai-recoil-compat`. TypeScript types come along too.
+
+If other packages in your tree depend on `recoil` (for example in a monorepo, or libraries like `recoil-persist`), force them onto the same copy with an override:
+
+```jsonc
+// package.json
+{
+  "overrides": { "recoil": "npm:jotai-recoil-compat@^0.2.0" },          // npm
+  "resolutions": { "recoil": "npm:jotai-recoil-compat@^0.2.0" },         // yarn
+  "pnpm": { "overrides": { "recoil": "npm:jotai-recoil-compat@^0.2.0" } } // pnpm
+}
+```
+
+### Option B: rewrite the imports (codemod)
+
+If you'd rather have the new package name in your source:
 
 ```bash
 npm install jotai-recoil-compat jotai
-# or
-yarn add jotai-recoil-compat jotai
-# or
-pnpm add jotai-recoil-compat jotai
+npx jotai-recoil-compat migrate src --dry-run   # preview
+npx jotai-recoil-compat migrate src             # rewrite
+npm uninstall recoil
 ```
 
-## Quick Start
+The codemod rewrites `import`/`export ... from 'recoil'`, `require('recoil')`, dynamic `import('recoil')` and `jest.mock`/`vi.mock`/`requireActual('recoil')`. It touches nothing else and skips `node_modules`, `dist` and `build`.
 
-### Before (Recoil)
+### Option C: bundler alias
 
-```tsx
-import { RecoilRoot, atom, selector, useRecoilState, useRecoilValue } from 'recoil';
+<details>
+<summary>Vite, webpack, Jest, TypeScript</summary>
 
-const countState = atom({
-  key: 'countState',
-  default: 0,
-});
+```ts
+// vite.config.ts
+export default defineConfig({ resolve: { alias: { recoil: 'jotai-recoil-compat' } } });
 
-const doubleCountState = selector({
-  key: 'doubleCountState',
-  get: ({ get }) => get(countState) * 2,
-});
+// webpack.config.js
+module.exports = { resolve: { alias: { recoil: 'jotai-recoil-compat' } } };
 
-function App() {
-  return (
-    <RecoilRoot>
-      <Counter />
-    </RecoilRoot>
-  );
-}
+// jest.config.js
+module.exports = { moduleNameMapper: { '^recoil$': 'jotai-recoil-compat' } };
 
-function Counter() {
-  const [count, setCount] = useRecoilState(countState);
-  const doubleCount = useRecoilValue(doubleCountState);
-
-  return (
-    <div>
-      <p>Count: {count}</p>
-      <p>Double: {doubleCount}</p>
-      <button onClick={() => setCount(count + 1)}>Increment</button>
-    </div>
-  );
-}
+// tsconfig.json
+{ "compilerOptions": { "paths": { "recoil": ["./node_modules/jotai-recoil-compat"] } } }
 ```
 
-### After (jotai-recoil-compat)
+</details>
 
-Simply change the import statement:
+For a step-by-step plan for large codebases (rollout, testing, known differences, moving to native Jotai), see **[MIGRATION.md](./MIGRATION.md)**.
 
-```tsx
-// Change this:
-// import { RecoilRoot, atom, selector, useRecoilState, useRecoilValue } from 'recoil';
+## API coverage
 
-// To this:
-import { RecoilRoot, atom, selector, useRecoilState, useRecoilValue } from 'jotai-recoil-compat';
+Everything exported by `recoil@0.7.7` is exported here, with the same signatures and types.
 
-// Everything else stays the same!
-```
+| Area | APIs | Status |
+| --- | --- | --- |
+| Core | `atom`, `selector` (sync, async, writable), `atom.value`, `selector.value`, `DefaultValue`, `isRecoilValue` | ✅ |
+| Atom defaults | values, Promises, selectors / other atoms, Loadables, `WrappedValue`; atoms without a default | ✅ |
+| Atom effects | `setSelf` (sync, async, updater), `resetSelf`, `onSet`, `trigger`, `storeID`, `getPromise`, `getLoadable`, `getInfo_UNSTABLE`, cleanup on `<RecoilRoot>` unmount | ✅ |
+| Selectors | async `get`, async dependencies, returning Recoil values / Loadables, `getCallback`, dependency-value caching, `cachePolicy_UNSTABLE` | ✅ |
+| Families | `atomFamily`, `selectorFamily` (Recoil's exact key format: `key__{"id":1}`), `constSelector`, `errorSelector`, `readOnlySelector` | ✅ |
+| Concurrency | `noWait`, `waitForAll`, `waitForAny`, `waitForNone`, `waitForAllSettled` (arrays and objects) | ✅ |
+| Hooks | `useRecoilState`, `useRecoilValue`, `useSetRecoilState`, `useResetRecoilState`, `useRecoilStateLoadable`, `useRecoilValueLoadable`, `*_TRANSITION_SUPPORT_UNSTABLE` | ✅ |
+| Callbacks | `useRecoilCallback` (`snapshot`, `set`, `reset`, `refresh`, `gotoSnapshot`, `transact_UNSTABLE`), `useRecoilTransaction_UNSTABLE`, `useRecoilRefresher_UNSTABLE` | ✅ |
+| Snapshots | `Snapshot` (`getLoadable`, `getPromise`, `getInfo_UNSTABLE`, `map`, `asyncMap`, `getNodes_UNSTABLE`, `getID`), `MutableSnapshot`, `snapshot_UNSTABLE`, `useRecoilSnapshot`, `useGotoRecoilSnapshot`, `useRecoilTransactionObserver_UNSTABLE` | ✅ |
+| Root | `<RecoilRoot initializeState override>`, `setUnvalidatedAtomValues`, `useRecoilStoreID`, `useRecoilBridgeAcrossReactRoots_UNSTABLE` | ✅ |
+| Loadables | `RecoilLoadable.of/error/loading/all/isLoadable`, every Loadable method (`getValue`, `toPromise`, `valueMaybe`, `map`, ...) | ✅ |
+| Misc | `RecoilEnv`, `useGetRecoilValueInfo_UNSTABLE`, `useRetain`, `retentionZone`, default export (`import Recoil from 'recoil'`) | ✅ |
+| Add-ons | `recoil-sync`, `recoil-relay` | ❌ not included |
 
-## API Reference
+## How compatibility is verified
 
-### Core Functions
-
-#### `atom(options)`
-
-Creates an atom with Recoil's API.
-
-```tsx
-import { atom } from 'jotai-recoil-compat';
-
-const textState = atom({
-  key: 'textState',
-  default: 'Hello',
-});
-```
-
-#### `selector(options)`
-
-Creates a derived state (selector) with Recoil's API.
-
-```tsx
-import { atom, selector } from 'jotai-recoil-compat';
-
-const countState = atom({
-  key: 'countState',
-  default: 0,
-});
-
-const doubleCountState = selector({
-  key: 'doubleCountState',
-  get: ({ get }) => get(countState) * 2,
-});
-
-// Writable selector
-const incrementState = selector({
-  key: 'incrementState',
-  get: ({ get }) => get(countState),
-  set: ({ get, set }, newValue) => {
-    set(countState, newValue);
-  },
-});
-```
-
-### Hooks
-
-#### `useRecoilState(state)`
-
-Returns a tuple with the current value and a setter function.
-
-```tsx
-import { useRecoilState } from 'jotai-recoil-compat';
-
-function Component() {
-  const [count, setCount] = useRecoilState(countState);
-
-  return (
-    <button onClick={() => setCount(count + 1)}>
-      Count: {count}
-    </button>
-  );
-}
-```
-
-#### `useRecoilValue(state)`
-
-Returns the current value of an atom or selector (read-only).
-
-```tsx
-import { useRecoilValue } from 'jotai-recoil-compat';
-
-function Component() {
-  const count = useRecoilValue(countState);
-
-  return <div>Count: {count}</div>;
-}
-```
-
-#### `useSetRecoilState(state)`
-
-Returns a setter function without subscribing to value changes.
-
-```tsx
-import { useSetRecoilState } from 'jotai-recoil-compat';
-
-function Component() {
-  const setCount = useSetRecoilState(countState);
-
-  return (
-    <button onClick={() => setCount((prev) => prev + 1)}>
-      Increment
-    </button>
-  );
-}
-```
-
-#### `useResetRecoilState(state)`
-
-Returns a function to reset the atom to its default value.
-
-```tsx
-import { useResetRecoilState } from 'jotai-recoil-compat';
-
-function Component() {
-  const resetCount = useResetRecoilState(countState);
-
-  return <button onClick={resetCount}>Reset</button>;
-}
-```
-
-### Components
-
-#### `<RecoilRoot>`
-
-Provides the state context for your application.
-
-```tsx
-import { RecoilRoot } from 'jotai-recoil-compat';
-
-function App() {
-  return (
-    <RecoilRoot>
-      <YourApp />
-    </RecoilRoot>
-  );
-}
-```
-
-## Migration Guide
-
-### Step 1: Install jotai-recoil-compat
+- **Parity suite** (`parity/`): behavioral tests written against the public Recoil API, run twice, once against this library and once against the real `recoil` package. They cover atoms, selector caching, async selectors and Suspense, loadables, families and key formats, the exact order and arguments of atom effect `onSet` calls, `initializeState` vs. effect precedence, callback snapshots, setter semantics, `waitFor*`, refreshers, transactions and snapshots.
+- **Type parity**: a file of typical typed Recoil code, plus a list of every name exported from Recoil's `index.d.ts`, is type-checked against both packages.
+- **Export parity**: a test asserts that every runtime export of `recoil` exists here with the same kind.
+- **Matrix**: CI runs on Jotai 2.12, latest 2.x and 3.x, with React 18 and 19.
 
 ```bash
-npm install jotai-recoil-compat jotai
+npm test             # unit tests + parity suite (both implementations)
+npm run test:parity  # parity suite only
+npm run typecheck    # includes type parity against recoil's own .d.ts
 ```
 
-### Step 2: Update imports
+## Differences from Recoil
 
-Find and replace all Recoil imports:
+The goal is that code that works with Recoil works unchanged. A few internals differ by design:
+
+- **Hooks outside a `<RecoilRoot>`** use Jotai's default store instead of throwing.
+- **Values are never frozen.** Recoil deep-freezes values in development. Code that works with Recoil never mutates state, so it is unaffected; `dangerouslyAllowMutability` is accepted and ignored.
+- **No retention bookkeeping.** Snapshots and atoms are garbage collected normally; `retain()`, `useRetain` and `retentionZone` are no-ops.
+- **`useRecoilSnapshot` and `useRecoilTransactionObserver_UNSTABLE`** are notified after a microtask, batched, rather than synchronously.
+- **Atom effects don't run inside Snapshots.** A snapshot reads the values of the store it was taken from.
+- **Async selectors that are still pending** in one `<RecoilRoot>` are evaluated again if read from another root or a snapshot before they resolve (Recoil shares the in-flight request). Resolved results are shared through the selector cache, as in Recoil.
+- **`getInfo_UNSTABLE`** is best effort (`subscribers` is empty). `StoreID` and `SnapshotID` are plain numbers.
+
+`npx jotai-recoil-compat check` flags the APIs where these notes apply.
+
+## Gradual migration to native Jotai
+
+Recoil atoms and selectors created by this library **are Jotai atoms**, and `<RecoilRoot>` renders a Jotai `<Provider>`. So both APIs work on the same state, in the same tree:
 
 ```tsx
-// Before
-import { ... } from 'recoil';
+import { useAtom, useAtomValue } from 'jotai';
+import { atom as jotaiAtom } from 'jotai';
+import { atom, selector, useRecoilValue } from 'recoil'; // aliased to jotai-recoil-compat
 
-// After
-import { ... } from 'jotai-recoil-compat';
+const todosState = atom<Todo[]>({ key: 'todos', default: [] }); // existing Recoil atom
+const filterAtom = jotaiAtom<'all' | 'done'>('all');           // new native Jotai atom
+
+// A Recoil selector can read native Jotai atoms...
+const visibleTodos = selector({
+  key: 'visibleTodos',
+  get: ({ get }) => get(todosState).filter((t) => get(filterAtom) === 'all' || t.done),
+});
+
+function TodoList() {
+  const [todos, setTodos] = useAtom(todosState);  // ...and Jotai hooks accept Recoil atoms.
+  const visible = useAtomValue(visibleTodos);
+  // ...
+}
 ```
 
-### Step 3: Test your application
+To share state with existing Jotai code, pass your store: `<RecoilRoot store={myJotaiStore}>`.
 
-Run your tests and verify everything works as expected.
+A Recoil-to-Jotai cheat sheet is in [MIGRATION.md](./MIGRATION.md#moving-to-native-jotai).
 
-### Step 4: (Optional) Gradually migrate to native Jotai
+## Requirements
 
-Once stable, you can gradually refactor to use Jotai's native API for new features while keeping existing code unchanged.
+- React 17, 18 or 19
+- Jotai 2.12 or later (Jotai 3 is supported)
+- TypeScript 4.7+ if you use TypeScript (5.5+ with Jotai 3)
 
-## Known Limitations
+## FAQ
 
-- **Atom Effects**: Not fully implemented yet. Consider using Jotai's built-in features or creating custom hooks.
-- **initializeState**: The `RecoilRoot` `initializeState` prop shows a warning. Use atom default values instead.
-- **Loadable API**: Simplified implementation. Async atoms are supported but with Jotai's behavior.
-- **Snapshots**: Not implemented. Use Jotai's store API if needed.
+**DevTools?** Use [jotai-devtools](https://github.com/jotaijs/jotai-devtools). Atoms and selectors are labeled with their Recoil keys.
 
-## Comparison with Recoil
+**SSR / Next.js?** Same as with Recoil: render `<RecoilRoot>` inside a client component. Each root gets its own store, so requests don't share state.
 
-| Feature | Recoil | jotai-recoil-compat |
-|---------|--------|--------------|
-| Basic atoms | ✅ | ✅ |
-| Selectors | ✅ | ✅ |
-| Async selectors | ✅ | ✅ (Jotai behavior) |
-| Atom effects | ✅ | ⚠️ Planned |
-| Snapshots | ✅ | ❌ Use Jotai store |
-| DevTools | ✅ | ✅ (Jotai DevTools) |
+**Persisted state?** Family keys are built exactly like Recoil's (`${key}__${stableStringify(param)}`), so effects that persist by `node.key` keep reading and writing the same entries.
+
+**Tests?** They keep working: `jest.mock('recoil')` and `snapshot_UNSTABLE()` are supported, and Option B's codemod rewrites mock paths too.
+
+**Can I use it without Recoil code?** Yes, but for new code we recommend native Jotai.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+See [CONTRIBUTING.md](./CONTRIBUTING.md). Bug reports with a failing parity test (one that passes against `recoil`) are especially welcome.
 
 ## License
 
 MIT
-
-## Acknowledgments
-
-- [Jotai](https://jotai.org/) - The amazing state management library powering this wrapper
-- [Recoil](https://recoiljs.org/) - The inspiration for this API design
-
-## Support
-
-If you encounter any issues or have questions, please [open an issue](https://github.com/yourusername/jotai-recoil-compat/issues).

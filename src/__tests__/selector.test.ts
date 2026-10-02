@@ -232,3 +232,27 @@ describe('selectorFamily / constSelector / errorSelector', () => {
     expect(() => store.get(errorSelector('nope'))).toThrow('nope');
   });
 });
+
+describe('selector edge cases', () => {
+  it('re-runs when a pending dependency it caught settles (no stale fallback)', async () => {
+    let resolve!: (v: string) => void;
+    const slow = selector({ key: 'edge/slow', get: () => new Promise<string>((r) => (resolve = r)) });
+    const withFallback = selector({
+      key: 'edge/fallback',
+      get: ({ get }) => {
+        try {
+          return get(slow);
+        } catch {
+          return 'fallback';
+        }
+      },
+    });
+    const store = createStore();
+    store.sub(withFallback, () => {});
+    expect(store.get(withFallback)).toBe('fallback');
+    resolve('real');
+    await flush();
+    await flush();
+    expect(store.get(withFallback)).toBe('real');
+  });
+});

@@ -94,13 +94,15 @@ describe('basic hooks', () => {
     function Show() {
       return <div>{useRecoilValue(q)}</div>;
     }
-    render(
-      <RecoilRoot>
-        <Suspense fallback={<div>loading</div>}>
-          <Show />
-        </Suspense>
-      </RecoilRoot>,
-    );
+    await act(async () => {
+      render(
+        <RecoilRoot>
+          <Suspense fallback={<div>loading</div>}>
+            <Show />
+          </Suspense>
+        </RecoilRoot>,
+      );
+    });
     expect(await screen.findByText('loaded')).toBeTruthy();
   });
 

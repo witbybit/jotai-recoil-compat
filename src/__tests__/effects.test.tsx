@@ -94,13 +94,15 @@ describe('atom effects', () => {
       return <div>{useRecoilValue(a)}</div>;
     }
     const { Suspense } = await import('react');
-    render(
-      <RecoilRoot>
-        <Suspense fallback={<div>loading</div>}>
-          <Show />
-        </Suspense>
-      </RecoilRoot>,
-    );
+    await act(async () => {
+      render(
+        <RecoilRoot>
+          <Suspense fallback={<div>loading</div>}>
+            <Show />
+          </Suspense>
+        </RecoilRoot>,
+      );
+    });
     expect(await screen.findByText('remote')).toBeTruthy();
     act(() => push('pushed'));
     expect(screen.getByText('pushed')).toBeTruthy();

@@ -65,7 +65,7 @@ export default function App() {
   return (
     <RecoilRoot>
       <div style={{ padding: '20px' }}>
-        <h1>jotai-recoil Counter Example</h1>
+        <h1>jotai-recoil-compat Counter Example</h1>
         <Counter />
         <StepControl />
       </div>

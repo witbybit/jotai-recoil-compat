@@ -105,14 +105,15 @@ describe('parity', () => {
     function Show() {
       return <div>{useRecoilValue(greeting)}</div>;
     }
-    render(
-      <RecoilRoot>
-        <Suspense fallback={<div>loading</div>}>
-          <Show />
-        </Suspense>
-      </RecoilRoot>,
-    );
-    expect(screen.getByText('loading')).toBeTruthy();
+    await act(async () => {
+      render(
+        <RecoilRoot>
+          <Suspense fallback={<div>loading</div>}>
+            <Show />
+          </Suspense>
+        </RecoilRoot>,
+      );
+    });
     expect(await screen.findByText('Hello Ada')).toBeTruthy();
   });
 

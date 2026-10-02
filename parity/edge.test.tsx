@@ -117,13 +117,15 @@ describe('edge semantics', () => {
     function Show() {
       return <div>{`v=${useRecoilValue(s)}`}</div>;
     }
-    render(
-      <RecoilRoot>
-        <Suspense fallback={<div>loading</div>}>
-          <Show />
-        </Suspense>
-      </RecoilRoot>,
-    );
+    await act(async () => {
+      render(
+        <RecoilRoot>
+          <Suspense fallback={<div>loading</div>}>
+            <Show />
+          </Suspense>
+        </RecoilRoot>,
+      );
+    });
     expect(await screen.findByText('v=6')).toBeTruthy();
   });
 
