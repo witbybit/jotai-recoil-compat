@@ -1,68 +1,267 @@
-import { atom as jotaiAtom } from 'jotai';
-import type { SelectorOptions, RecoilState, RecoilValueReadOnly } from './types';
+import { atom as jotaiAtom } from 'jotai/vanilla';
+import type { Atom } from 'jotai/vanilla';
+import {
+  NODE,
+  PendingSignal,
+  REFRESH,
+  WrappedValue,
+  getMeta,
+  isJotaiAtom,
+  isPromiseLike,
+  registerNode,
+  settled,
+  storeAtom,
+  unwrapRaw,
+  type AnyAtom,
+  type RecoilNodeBase,
+  type SelectorMeta,
+  type Store,
+} from './core';
+import { isLoadable, loadableFromRaw, loadableWithError, loadableWithPromise, type Loadable } from './Loadable';
+import { SelectorCache } from './selectorCache';
+import { Snapshot, createCallbackInterface } from './Snapshot';
+import { resetVia, setVia, syncValueFromGetter } from './storeOps';
+import type {
+  GetCallback,
+  ReadOnlySelectorOptions,
+  ReadWriteSelectorOptions,
+  RecoilState,
+  RecoilValueReadOnly,
+} from './types';
 
-const selectorRegistry = new Map<string, RecoilState<any> | RecoilValueReadOnly<any>>();
+type Getter = <V>(a: Atom<V>) => V;
 
-export function selector<T>(
-  options: SelectorOptions<T>
+/** The snapshot that reads inside the currently running selector setter use. */
+let setterContext: { store: Store; snapshot: Snapshot } | null = null;
+
+/** @internal Extra option passed to selector `get` by the waitFor* helpers. */
+export const GET_LOADABLE: unique symbol = Symbol('jotai-recoil-compat/getLoadable');
+export type InternalGetOptions = { [GET_LOADABLE]: <T>(dep: AnyAtom) => Loadable<T> };
+
+/** @internal */
+export function createSelector<T>(
+  options: ReadOnlySelectorOptions<T> | ReadWriteSelectorOptions<T>,
+  isFamilyMember: boolean,
 ): RecoilState<T> | RecoilValueReadOnly<T> {
-  const { key, get: getFunc, set: setFunc } = options;
+  const { key, get: userGet } = options;
+  const userSet = 'set' in options ? options.set : undefined;
+  if (typeof key !== 'string') {
+    throw new Error('[jotai-recoil-compat] selector() requires a string `key`.');
+  }
+  const cache = new SelectorCache(options.cachePolicy_UNSTABLE);
+  const refreshAtom = jotaiAtom(0);
+  refreshAtom.debugPrivate = true;
+  const meta: SelectorMeta = {
+    type: 'selector',
+    key,
+    writable: !!userSet,
+    clearCache: () => cache.clear(),
+    deps: new Set(),
+  };
 
-  // Check if selector with this key already exists
-  if (selectorRegistry.has(key)) {
-    return selectorRegistry.get(key)!;
+  function evaluate(get: Getter): unknown {
+    const hit = cache.lookup(get as (a: AnyAtom) => unknown);
+    if (hit) {
+      if (hit.ok) return hit.value;
+      throw hit.error;
+    }
+
+    let store: Store | undefined;
+    const getStore = () => (store ??= get(storeAtom));
+    let deps: Array<[AnyAtom, unknown]> = [];
+    let depSet = new Set<AnyAtom>();
+    let cacheable = true;
+    let swallowedPending: PromiseLike<unknown>[] = [];
+
+    const record = (dep: AnyAtom, raw: unknown) => {
+      if (!depSet.has(dep)) {
+        depSet.add(dep);
+        deps.push([dep, raw]);
+      }
+    };
+    const readDep = (dep: unknown): unknown => {
+      if (!isJotaiAtom(dep)) {
+        throw new Error(`[jotai-recoil-compat] selector "${key}": get() was called with an invalid value: ${String(dep)}`);
+      }
+      try {
+        const raw = get(dep);
+        record(dep, raw);
+        return raw;
+      } catch (e) {
+        cacheable = false;
+        depSet.add(dep);
+        throw e;
+      }
+    };
+    const getValue = (dep: unknown) => {
+      try {
+        return unwrapRaw(readDep(dep));
+      } catch (e) {
+        // Remembered in case the selector catches it instead of letting it propagate.
+        if (e instanceof PendingSignal) swallowedPending.push(e.promise);
+        throw e;
+      }
+    };
+    const refreshWhenSettled = (p: PromiseLike<unknown>) => {
+      const s = getStore();
+      settled(p).then(() => s.set(node as any, REFRESH));
+    };
+    const getLoadable = <V>(dep: AnyAtom): Loadable<V> => {
+      let raw: unknown;
+      try {
+        raw = readDep(dep);
+      } catch (e) {
+        return isPromiseLike(e) ? loadableWithPromise(e as Promise<V>) : loadableWithError(e);
+      }
+      const l = loadableFromRaw<V>(raw);
+      if (l.state === 'loading') {
+        // The result depends on a pending value without suspending on it:
+        // don't cache it, and re-evaluate once the value settles.
+        cacheable = false;
+        refreshWhenSettled(l.contents);
+      }
+      return l;
+    };
+    const getCallback: GetCallback = (fn) => {
+      const s = getStore();
+      return (...args) => fn(createCallbackInterface(s))(...args);
+    };
+    const opts = { get: getValue, getCallback, [GET_LOADABLE]: getLoadable } as any;
+
+    const commit = (value: unknown) => {
+      if (swallowedPending.length) {
+        // The selector caught a pending dependency and returned anyway (e.g.
+        // a fallback): don't cache that, and re-run once it settles.
+        cacheable = false;
+        refreshWhenSettled(Promise.all(swallowedPending.map(settled)));
+      }
+      if (cacheable) cache.insert(deps.slice(), { ok: true, value });
+      meta.deps = depSet;
+      return value;
+    };
+    const fail = (error: unknown): never => {
+      if (cacheable) cache.insert(deps.slice(), { ok: false, error });
+      meta.deps = depSet;
+      throw error;
+    };
+
+    // Turns whatever `get` returned into a final value, or a promise of one.
+    const settle = (result: unknown): unknown => {
+      if (result instanceof WrappedValue) return commit(result.value);
+      if (isLoadable(result)) {
+        const l = result as Loadable<unknown>;
+        if (l.state === 'hasValue') return commit(l.contents);
+        if (l.state === 'hasError') throw l.contents;
+        return l.contents.then(settleSafe, onError);
+      }
+      if (isJotaiAtom(result)) return settle(getValue(result));
+      if (isPromiseLike(result)) return Promise.resolve(result).then(settleSafe, onError);
+      return commit(result);
+    };
+    const settleSafe = (result: unknown): unknown => {
+      try {
+        return settle(result);
+      } catch (e) {
+        return onError(e);
+      }
+    };
+    const onError = (e: unknown): unknown => {
+      // A dependency is pending (or the selector threw a promise, Suspense
+      // style): wait for it, then re-run the selector, like Recoil does.
+      if (e instanceof PendingSignal) return settled(e.promise).then(attempt);
+      if (isPromiseLike(e)) return settled(e).then(attempt);
+      return fail(e);
+    };
+    const attempt = (): unknown => {
+      deps = [];
+      depSet = new Set();
+      cacheable = true;
+      swallowedPending = [];
+      try {
+        return settle(userGet(opts));
+      } catch (e) {
+        return onError(e);
+      }
+    };
+    return attempt();
   }
 
-  if (setFunc) {
-    // Create a writable derived atom (read-write selector)
-    const derivedAtom = jotaiAtom(
-      (get) => {
-        // Wrap jotai's get to match Recoil's API
-        return getFunc({ get: (atom) => get(atom) });
-      },
-      (get, set, newValue: T) => {
-        // Wrap jotai's get and set to match Recoil's API
-        setFunc(
+  const node = jotaiAtom(
+    (get) => {
+      get(refreshAtom);
+      return evaluate(get);
+    },
+    (get, set, update: unknown) => {
+      if (update === REFRESH) {
+        set(refreshAtom, (c) => c + 1);
+        return;
+      }
+      if (!userSet) {
+        throw new Error(`[jotai-recoil-compat] Attempt to set read-only selector "${key}"`);
+      }
+      let newValue = update;
+      if (typeof newValue === 'function') {
+        newValue = (newValue as (prev: unknown) => unknown)(syncValueFromGetter(get, node));
+      }
+      // Like Recoil, `get` (and updaters) inside a setter read the state as it
+      // was before this set started, even after the setter's own writes. A
+      // copy-on-write snapshot gives us that cheaply; nested selector sets
+      // share it.
+      const store = get(storeAtom);
+      const outer = setterContext;
+      let snapshot: Snapshot | undefined = outer?.store === store ? outer.snapshot : undefined;
+      const ownsSnapshot = !snapshot;
+      const pin = () => (snapshot ??= new Snapshot(store));
+      const readOld = (rv: AnyAtom) => {
+        const snap = pin();
+        return syncValueFromGetter(snap._getStore().get, rv);
+      };
+      setterContext = { store, get snapshot() { return pin(); } };
+      try {
+        userSet(
           {
-            get: (atom) => get(atom),
-            set: (atom, value) => set(atom, value),
-            reset: (atom) => {
-              // For reset, we need to get the default value
-              // This is a simplified implementation
-              const atomWithDefault = atom as any;
-              if (atomWithDefault.init !== undefined) {
-                set(atom, atomWithDefault.init);
+            get: readOld as any,
+            set: (rv, v) => {
+              let value: unknown = v;
+              if (typeof v === 'function') {
+                value = (v as (prev: unknown) => unknown)(readOld(rv as unknown as AnyAtom));
+                if (typeof value === 'function' && getMeta(rv)?.type === 'atom') value = new WrappedValue(value);
+              } else {
+                pin();
               }
+              setVia(set, rv as unknown as AnyAtom, value);
+            },
+            reset: (rv) => {
+              pin();
+              resetVia(set, rv as unknown as AnyAtom);
             },
           },
-          newValue
+          newValue as T,
         );
+      } finally {
+        setterContext = outer;
+        if (ownsSnapshot) snapshot?._release();
       }
-    );
-
-    const recoilSelector = Object.assign(derivedAtom, { key }) as RecoilState<T>;
-    selectorRegistry.set(key, recoilSelector);
-    return recoilSelector;
-  } else {
-    // Create a read-only derived atom (read-only selector)
-    const derivedAtom = jotaiAtom((get) => {
-      return getFunc({ get: (atom) => get(atom) });
-    });
-
-    const recoilSelector = Object.assign(derivedAtom, {
-      key,
-    }) as RecoilValueReadOnly<T>;
-    selectorRegistry.set(key, recoilSelector);
-    return recoilSelector;
-  }
+    },
+  ) as unknown as RecoilNodeBase;
+  Object.assign(node, { key, [NODE]: meta, toJSON: () => ({ key }) });
+  node.debugLabel = key;
+  registerNode(node, { isFamilyMember });
+  return node as unknown as RecoilState<T>;
 }
 
-export function getSelectorByKey(
-  key: string
-): RecoilState<any> | RecoilValueReadOnly<any> | undefined {
-  return selectorRegistry.get(key);
+/**
+ * Creates a Recoil-compatible selector. Supports sync and async `get`,
+ * returning other Recoil values / Loadables, `getCallback`, writable selectors,
+ * Recoil-style dependency-value caching and `cachePolicy_UNSTABLE`.
+ */
+export function selector<T>(options: ReadWriteSelectorOptions<T>): RecoilState<T>;
+export function selector<T>(options: ReadOnlySelectorOptions<T>): RecoilValueReadOnly<T>;
+export function selector<T>(
+  options: ReadOnlySelectorOptions<T> | ReadWriteSelectorOptions<T>,
+): RecoilState<T> | RecoilValueReadOnly<T> {
+  return createSelector(options, false);
 }
 
-export function clearSelectorRegistry(): void {
-  selectorRegistry.clear();
-}
+/** Wrap a value so it is returned as-is (Recoil's `selector.value()`). */
+selector.value = <T>(value: T): WrappedValue<T> => new WrappedValue(value);

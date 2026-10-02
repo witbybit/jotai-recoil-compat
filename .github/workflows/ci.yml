@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: jotai ${{ matrix.jotai }} / react ${{ matrix.react }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        jotai: ['2.12.0', '2', '3']
+        react: ['18', '19']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install jotai ${{ matrix.jotai }} and react ${{ matrix.react }}
+        run: >
+          npm install --no-save
+          jotai@${{ matrix.jotai }}
+          react@${{ matrix.react }} react-dom@${{ matrix.react }}
+          @types/react@${{ matrix.react }} @types/react-dom@${{ matrix.react }}
+      - run: npm run typecheck
+      - name: Unit tests + parity suite against this library
+        run: npx vitest run --project unit --project parity:compat
+      - name: Parity suite against real Recoil (Recoil does not support React 19)
+        if: matrix.react == '18'
+        run: npx vitest run --project parity:recoil
+      - run: npm run build

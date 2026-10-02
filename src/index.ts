@@ -1,27 +1,18 @@
-// Core atom and selector functions
-export { atom } from './atom';
-export { selector } from './selector';
+/**
+ * jotai-recoil-compat: a drop-in replacement for Recoil, implemented on Jotai.
+ *
+ * Every export mirrors the `recoil` package's API. Recoil atoms/selectors
+ * created here are real Jotai atoms, so you can migrate to native Jotai APIs
+ * one component at a time.
+ */
+import * as Recoil from './namespace';
 
-// Hooks
-export {
-  useRecoilState,
-  useRecoilValue,
-  useSetRecoilState,
-  useResetRecoilState,
-  useRecoilStateLoadable,
-  useRecoilValueLoadable,
-} from './hooks';
+export * from './namespace';
 
-// Components
-export { RecoilRoot } from './RecoilRoot';
+export type { Loadable, ValueLoadable, ErrorLoadable, LoadingLoadable } from './Loadable';
+export type { RecoilRootProps } from './RecoilRoot';
+export type { AtomFamily, SelectorFamily, ReadOnlySelectorFamily } from './family';
+export type * from './types';
 
-// Types
-export type {
-  RecoilState,
-  RecoilValueReadOnly,
-  AtomOptions,
-  SelectorOptions,
-  AtomEffect,
-  SetterOrUpdater,
-  Resetter,
-} from './types';
+/** Default export, for code written as `import Recoil from 'recoil'; Recoil.atom(...)`. */
+export default Recoil;

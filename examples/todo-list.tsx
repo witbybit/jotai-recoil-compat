@@ -1,4 +1,4 @@
-import { RecoilRoot, atom, selector, useRecoilState, useRecoilValue } from 'jotai-recoil';
+import { RecoilRoot, atom, selector, useRecoilState, useRecoilValue } from 'jotai-recoil-compat';
 
 // Types
 interface Todo {
@@ -188,7 +188,7 @@ export default function App() {
   return (
     <RecoilRoot>
       <div style={{ padding: '20px', maxWidth: '600px' }}>
-        <h1>jotai-recoil Todo List Example</h1>
+        <h1>jotai-recoil-compat Todo List Example</h1>
         <TodoListStats />
         <TodoListFilters />
         <TodoItemCreator />

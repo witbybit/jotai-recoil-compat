@@ -1,46 +1,46 @@
-# Contributing to jotai-recoil
+# Contributing to jotai-recoil-compat
 
-Thank you for your interest in contributing to jotai-recoil! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to jotai-recoil-compat! This document provides guidelines and instructions for contributing.
 
 ## Development Setup
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/jotai-recoil.git
-   cd jotai-recoil
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Build the library:
-   ```bash
-   npm run build
-   ```
-
-4. Run tests:
-   ```bash
-   npm test
-   ```
+```bash
+git clone https://github.com/witbybit/jotai-recoil-compat.git
+cd jotai-recoil-compat
+npm install
+npm test
+```
 
 ## Project Structure
 
 ```
-jotai-recoil/
+jotai-recoil-compat/
 ├── src/
-│   ├── atom.ts          # Atom implementation
-│   ├── selector.ts      # Selector implementation
-│   ├── hooks.ts         # React hooks
-│   ├── RecoilRoot.tsx   # Provider component
-│   ├── types.ts         # TypeScript types
-│   ├── index.ts         # Main entry point
-│   └── __tests__/       # Test files
-├── examples/            # Example usage
-├── dist/                # Built files (generated)
-└── package.json
+│   ├── core.ts            # Sentinels, node metadata, per-store bookkeeping, promise tracking
+│   ├── atom.ts            # atom() and atom effects
+│   ├── selector.ts        # selector(): evaluation, async handling, setters
+│   ├── selectorCache.ts   # Dependency-value cache (Recoil's selector caching)
+│   ├── family.ts          # atomFamily, selectorFamily, constSelector, errorSelector
+│   ├── waitFor.ts         # noWait, waitForAll/Any/None/AllSettled
+│   ├── Loadable.ts        # Loadable classes and RecoilLoadable
+│   ├── Snapshot.ts        # Copy-on-write snapshots, callbacks, transactions
+│   ├── hooks.ts           # React hooks
+│   ├── RecoilRoot.tsx     # <RecoilRoot>
+│   ├── types.ts           # Public types (mirror Recoil's)
+│   └── __tests__/         # Unit tests
+├── parity/                # Tests run against BOTH this library and real Recoil
+├── bin/                   # `check` / `migrate` CLI
+└── examples/
 ```
+
+## How it works
+
+Each Recoil node is a Jotai atom. An atom keeps its explicit value in a private
+"value atom" (holding a sentinel while at its default); a selector is a derived
+Jotai atom that adds Recoil's semantics on top (unwrapping async dependencies,
+dependency-value caching, Loadable/RecoilValue return values). Store-specific
+work (atom effects, snapshots, `getCallback`) uses Jotai's per-store init hook
+(`INTERNAL_onInit` / `unstable_onInit`).
 
 ## Development Workflow
 
@@ -55,27 +55,26 @@ jotai-recoil/
 
 3. Add tests for new functionality
 
-4. Run tests to ensure everything passes:
+4. Run the checks:
    ```bash
-   npm test
-   ```
-
-5. Build the library to check for TypeScript errors:
-   ```bash
+   npm run typecheck   # also type-checks the parity files against recoil's own types
+   npm test            # unit tests + parity suite against both implementations
    npm run build
    ```
 
 ### Testing
 
-- Write tests for all new features and bug fixes
-- Place tests in `src/__tests__/` directory
-- Use descriptive test names
-- Follow existing test patterns
+- Write tests for all new features and bug fixes.
+- **Behavior that Recoil defines belongs in `parity/`.** Those tests import from
+  `recoil-under-test` and run twice: against this library and against the real
+  `recoil` package. A parity test must pass on both.
+- Implementation details go in `src/__tests__/`.
 
-Run tests:
 ```bash
-npm test              # Run all tests
-npm run test:watch    # Run tests in watch mode
+npm test                                   # everything
+npm run test:parity                        # parity suite only
+npx vitest run --project parity:recoil     # check a new parity test against real Recoil
+npm run test:watch
 ```
 
 ### Code Style
@@ -105,7 +104,7 @@ Use clear and descriptive commit messages:
 
 When reporting bugs, please include:
 - A clear description of the issue
-- Steps to reproduce
+- Steps to reproduce (ideally a failing test in `parity/` that passes with `--project parity:recoil`)
 - Expected behavior
 - Actual behavior
 - Environment details (Node version, React version, etc.)
